@@ -77,10 +77,10 @@ def extract_info_with_ollama(abstract):
             result_text = response.json().get('response', '')
             
             # --- โค้ดทำความสะอาดข้อความจาก AI (กันบั๊กข้อมูลว่างเปล่า) ---
-            # 1. ลบเครื่องหมาย Markdown ที่ AI อาจจะแถมมา
+            # ลบเครื่องหมาย Markdown ที่ AI อาจจะแถมมา
             result_text = result_text.replace('```json', '').replace('```', '').strip()
             
-            # 2. ตัดเอาเฉพาะข้อความที่อยู่ระหว่างวงเล็บปีกกา
+            # ตัดเอาเฉพาะข้อความที่อยู่ระหว่างวงเล็บปีกกา
             start_idx = result_text.find('{')
             end_idx = result_text.rfind('}')
             
@@ -117,7 +117,7 @@ def build_knowledge_graph(initial_papers):
         status_text.text(f"กำลังให้ Ollama อ่าน Abstract เปเปอร์ที่ {i+1}/{total_papers}...")
         progress_bar.progress((i + 1) / total_papers)
         
-        # 6.1 โหนด Paper และ Author
+        # โหนด Paper และ Author
         G.add_node(p_id, label=p['title'][:30], title=p['title'], type='Paper', color='#74b9ff', shape='box', size=25)
         
         authors = p.get('authors') or []
@@ -128,7 +128,7 @@ def build_knowledge_graph(initial_papers):
                 G.add_node(a_id, label=author['name'], title=f"Author: {author['name']}", type='Author', color='#55efc4', shape='ellipse', size=15)
                 G.add_edge(a_id, p_id, label='writes', color='#b2bec3')
         
-        # 6.2 โหนด References
+        # โหนด References
         raw_refs = p.get('references') or []
         for ref in raw_refs[:2]:
             if not ref: continue
@@ -138,7 +138,7 @@ def build_knowledge_graph(initial_papers):
                     G.add_node(ref_id, label=ref['title'][:30], title=ref['title'], type='Paper', color='#fab1a0', shape='box', size=20)
                 G.add_edge(p_id, ref_id, label='cites', color='#ff7675')
                 
-        # 6.3 โหนดข้อมูลเชิงลึก (จาก Ollama)
+        # โหนดข้อมูลเชิงลึก (จาก Ollama)
         abstract = p.get('abstract')
         if abstract:
             extracted_data = extract_info_with_ollama(abstract)
@@ -161,7 +161,6 @@ def build_knowledge_graph(initial_papers):
             # --- ส่วนที่เพิ่มใหม่: โหนด Topic ---
             for topic in extracted_data.get('topics', []):
                 t_node = f"T_{topic}"
-                # ใช้รูปดาว (star) และสีเขียวอมฟ้า (#81ecec) เพื่อแยกให้ชัดเจนจากโหนดอื่นๆ
                 G.add_node(t_node, label=topic, title=f"Topic: {topic}", type='Topic', color='#81ecec', shape='star', size=25)
                 G.add_edge(p_id, t_node, label='has_topic', color='#81ecec')
 
@@ -171,11 +170,19 @@ def build_knowledge_graph(initial_papers):
 # --- 7. RECOMMENDATION ALGORITHM ---
 def get_recommendations(G, target_paper_id):
     try:
-        pers = {n: 0.0 for n in G.nodes()}
+        # แปลงกราฟชั่วคราวให้เป็นแบบ Undirected
+        undirected_G = G.to_undirected() 
+        
+        pers = {n: 0.0 for n in undirected_G.nodes()}
         if target_paper_id in pers:
             pers[target_paper_id] = 1.0
-        scores = nx.pagerank(G, personalization=pers)
-        paper_scores = [(node, scores[node]) for node in G.nodes() if G.nodes[node].get('type') == 'Paper' and node != target_paper_id]
+            
+        # คำนวณคะแนนบนกราฟที่แบบ Undirected ได้
+        scores = nx.pagerank(undirected_G, personalization=pers)
+        
+        # เอาเฉพาะเปเปอร์ และคะแนนมากกว่า 0
+        paper_scores = [(node, scores[node]) for node in G.nodes() if G.nodes[node].get('type') == 'Paper' and node != target_paper_id and scores[node] > 0.0001]
+        
         return sorted(paper_scores, key=lambda x: x[1], reverse=True)[:5]
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาด: {e}")
@@ -229,3 +236,6 @@ if 'graph' in st.session_state:
             for i, (p_id, score) in enumerate(recs):
                 p_title = current_graph.nodes[p_id].get('title', 'Unknown')
                 st.write(f"{i+1}. **{p_title}** (คะแนนความเกี่ยวข้องกัน: {score:.4f})")
+        
+        else:
+            st.info("ขณะนี้ยังไม่มีเปเปอร์อื่นที่เชื่อมโยงกับเปเปอร์นี้ลองค้นหาหัวข้ออื่นๆ เพิ่มเติมเพื่อขยายกราฟความรู้ให้กว้างขึ้นนะครับ")
