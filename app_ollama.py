@@ -48,7 +48,7 @@ def fetch_papers_with_limit(query, limit):
 # --- 5. AI INFORMATION EXTRACTION (Ollama Local) ---
 def extract_info_with_ollama(abstract):
     if not abstract:
-        return {"methods": [], "datasets": [], "metrics": []}
+        return {"methods": [], "datasets": [], "metrics": [], "topics": []}
     
     prompt = f"""
     You are an AI researcher assistant. Read the following abstract and extract information.
@@ -57,6 +57,7 @@ def extract_info_with_ollama(abstract):
         "methods": ["list", "of", "methods or architectures used"],
         "datasets": ["list", "of", "datasets or benchmarks used"],
         "metrics": ["list", "of", "evaluation metrics used"]
+        "topics": ["list", "of", "general research topics or keywords"]
     }}
     If a category is not mentioned, use an empty list []. Keep items very concise (1-3 words).
     
@@ -88,18 +89,18 @@ def extract_info_with_ollama(abstract):
                 try:
                     return json.loads(clean_json_str)
                 except json.JSONDecodeError:
-                    return {"methods": [], "datasets": [], "metrics": []}
+                    return {"methods": [], "datasets": [], "metrics": [], "topics": []}
             else:
-                return {"methods": [], "datasets": [], "metrics": []}
+                return {"methods": [], "datasets": [], "metrics": [], "topics": []}
             
         else:
-            return {"methods": [], "datasets": [], "metrics": []}
+            return {"methods": [], "datasets": [], "metrics": [], "topics": []}
             
     except requests.exceptions.ConnectionError:
         st.error("ไม่สามารถเชื่อมต่อกับ Ollama ได้! โปรดตรวจสอบว่าโปรแกรม Ollama เปิดอยู่และทำงานปกติ")
-        return {"methods": [], "datasets": [], "metrics": []}
+        return {"methods": [], "datasets": [], "metrics": [], "topics": []}
     except Exception as e:
-        return {"methods": [], "datasets": [], "metrics": []}
+        return {"methods": [], "datasets": [], "metrics": [], "topics": []}
 
 # --- 6. GRAPH CONSTRUCTION ---
 def build_knowledge_graph(initial_papers):
@@ -113,7 +114,7 @@ def build_knowledge_graph(initial_papers):
         p_id = p.get('paperId')
         if not p_id: continue
         
-        status_text.text(f"กำลังให้ Ollama อ่าน Abstract เปเปอร์ที่ {i+1}/{total_papers}... (ความเร็วขึ้นอยู่กับเครื่อง)")
+        status_text.text(f"กำลังให้ Ollama อ่าน Abstract เปเปอร์ที่ {i+1}/{total_papers}...")
         progress_bar.progress((i + 1) / total_papers)
         
         # 6.1 โหนด Paper และ Author
@@ -156,6 +157,13 @@ def build_knowledge_graph(initial_papers):
                 mt_node = f"MT_{metric}"
                 G.add_node(mt_node, label=metric, title=f"Metric: {metric}", type='Metric', color='#fd79a8', shape='diamond', size=20)
                 G.add_edge(p_id, mt_node, label='evaluates_on', color='#fd79a8')
+                
+            # --- ส่วนที่เพิ่มใหม่: โหนด Topic ---
+            for topic in extracted_data.get('topics', []):
+                t_node = f"T_{topic}"
+                # ใช้รูปดาว (star) และสีเขียวอมฟ้า (#81ecec) เพื่อแยกให้ชัดเจนจากโหนดอื่นๆ
+                G.add_node(t_node, label=topic, title=f"Topic: {topic}", type='Topic', color='#81ecec', shape='star', size=25)
+                G.add_edge(p_id, t_node, label='has_topic', color='#81ecec')
 
     status_text.success("วิเคราะห์เสร็จสมบูรณ์!")
     return G
