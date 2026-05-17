@@ -49,23 +49,25 @@ def fetch_papers_with_limit(query, limit):
 def extract_info_with_ollama(abstract):
     if not abstract:
         return {"methods": [], "datasets": [], "metrics": [], "topics": []}
-    
+
     prompt = f"""
     You are an AI researcher assistant. Read the following abstract and extract information.
     Return ONLY a JSON object with this exact structure:
     {{
         "methods": ["list", "of", "methods or architectures used"],
         "datasets": ["list", "of", "datasets or benchmarks used"],
-        "metrics": ["list", "of", "evaluation metrics used"]
-        "topics": ["list", "of", "general research topics or keywords"]
+        "topics": ["list", "of", "general research topics or keywords"],
+        "metrics": [
+            {{"name": "metric name (e.g. Accuracy)", "value": "score or value if mentioned (e.g. 92.5%, +1.2), or empty string"}},
+            {{"name": "another metric", "value": ""}}
+        ]
     }}
-    If a category is not mentioned, use an empty list []. Keep items very concise (1-3 words).
+    If a category is not mentioned, use an empty list []. Keep items very concise.
     
     Abstract: {abstract}
     """
     
     try:
-        # ยิงคำขอไปที่ Ollama
         response = requests.post('http://localhost:11434/api/generate', json={
             "model": "llama3", 
             "prompt": prompt,
@@ -75,12 +77,8 @@ def extract_info_with_ollama(abstract):
         
         if response.status_code == 200:
             result_text = response.json().get('response', '')
-            
-            # --- โค้ดทำความสะอาดข้อความจาก AI (กันบั๊กข้อมูลว่างเปล่า) ---
-            # ลบเครื่องหมาย Markdown ที่ AI อาจจะแถมมา
             result_text = result_text.replace('```json', '').replace('```', '').strip()
             
-            # ตัดเอาเฉพาะข้อความที่อยู่ระหว่างวงเล็บปีกกา
             start_idx = result_text.find('{')
             end_idx = result_text.rfind('}')
             
@@ -97,7 +95,7 @@ def extract_info_with_ollama(abstract):
             return {"methods": [], "datasets": [], "metrics": [], "topics": []}
             
     except requests.exceptions.ConnectionError:
-        st.error("ไม่สามารถเชื่อมต่อกับ Ollama โปรดตรวจสอบว่าโปรแกรม Ollama เปิดอยู่และทำงานปกติ")
+        st.error("ไม่สามารถเชื่อมต่อกับ Ollama โปรดตรวจสอบว่าเปิดโปรแกรมอยู่")
         return {"methods": [], "datasets": [], "metrics": [], "topics": []}
     except Exception as e:
         return {"methods": [], "datasets": [], "metrics": [], "topics": []}
@@ -138,7 +136,7 @@ def build_knowledge_graph(initial_papers):
                     G.add_node(ref_id, label=ref['title'][:30], title=ref['title'], type='Paper', color='#fab1a0', shape='box', size=20)
                 G.add_edge(p_id, ref_id, label='cites', color='#ff7675')
                 
-        # โหนดข้อมูลเชิงลึก (จาก Ollama)
+        # โหนดข้อมูลเชิงลึก
         abstract = p.get('abstract')
         if abstract:
             extracted_data = extract_info_with_ollama(abstract)
@@ -153,16 +151,28 @@ def build_knowledge_graph(initial_papers):
                 G.add_node(d_node, label=dataset, title=f"Dataset: {dataset}", type='Dataset', color='#ffeaa7', shape='database', size=20)
                 G.add_edge(p_id, d_node, label='uses_dataset', color='#ffeaa7')
                 
-            for metric in extracted_data.get('metrics', []):
-                mt_node = f"MT_{metric}"
-                G.add_node(mt_node, label=metric, title=f"Metric: {metric}", type='Metric', color='#fd79a8', shape='diamond', size=20)
-                G.add_edge(p_id, mt_node, label='evaluates_on', color='#fd79a8')
-                
-            # --- ส่วนที่เพิ่มใหม่: โหนด Topic ---
             for topic in extracted_data.get('topics', []):
                 t_node = f"T_{topic}"
                 G.add_node(t_node, label=topic, title=f"Topic: {topic}", type='Topic', color='#81ecec', shape='star', size=25)
                 G.add_edge(p_id, t_node, label='has_topic', color='#81ecec')
+
+            for metric in extracted_data.get('metrics', []):
+                if isinstance(metric, dict):
+                    m_name = metric.get('name', '').strip()
+                    m_value = metric.get('value', '').strip()
+                else:
+                    m_name = str(metric).strip()
+                    m_value = ""
+                
+                if m_name:
+                    mt_node = f"MT_{m_name}"
+                    # สร้างโหนดแค่ชื่อ Metric (เช่น Accuracy)
+                    G.add_node(mt_node, label=m_name, title=f"Metric: {m_name}", type='Metric', color='#fd79a8', shape='diamond', size=20)
+
+                    # ถ้าไม่มีตัวเลข ให้ใช้ evaluates_on ปกติ
+                    edge_label = f"achieves {m_value}" if m_value else "evaluates_on"
+                    
+                    G.add_edge(p_id, mt_node, label=edge_label, color='#fd79a8')
 
     return G
 
@@ -212,7 +222,7 @@ if st.button("ค้นหาและสร้าง Knowledge Graph"):
                 damping=0.09          # ความหนืด ช่วยให้กราฟหยุดสั่นเร็วขึ้น
             )
             
-            # 2. เปิดแผงควบคุมให้ผู้ใช้ปรับระยะห่างกราฟเองได้บนหน้าเว็บ
+            # เปิดแผงควบคุมให้ผู้ใช้ปรับระยะห่างกราฟเองได้บนหน้าเว็บ
             net.show_buttons(filter_=['physics'])
             # ---------------------------------------------
             
