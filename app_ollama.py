@@ -97,7 +97,7 @@ def extract_info_with_ollama(abstract):
             return {"methods": [], "datasets": [], "metrics": [], "topics": []}
             
     except requests.exceptions.ConnectionError:
-        st.error("ไม่สามารถเชื่อมต่อกับ Ollama ได้! โปรดตรวจสอบว่าโปรแกรม Ollama เปิดอยู่และทำงานปกติ")
+        st.error("ไม่สามารถเชื่อมต่อกับ Ollama โปรดตรวจสอบว่าโปรแกรม Ollama เปิดอยู่และทำงานปกติ")
         return {"methods": [], "datasets": [], "metrics": [], "topics": []}
     except Exception as e:
         return {"methods": [], "datasets": [], "metrics": [], "topics": []}
@@ -164,7 +164,6 @@ def build_knowledge_graph(initial_papers):
                 G.add_node(t_node, label=topic, title=f"Topic: {topic}", type='Topic', color='#81ecec', shape='star', size=25)
                 G.add_edge(p_id, t_node, label='has_topic', color='#81ecec')
 
-    status_text.success("วิเคราะห์เสร็จสมบูรณ์!")
     return G
 
 # --- 7. RECOMMENDATION ALGORITHM ---
@@ -203,6 +202,20 @@ if st.button("ค้นหาและสร้าง Knowledge Graph"):
             # วาดและเซฟ HTML
             net = Network(height="700px", width="100%", bgcolor="#222222", font_color="white", directed=True, notebook=True)
             net.from_nx(G)
+
+            # ตั้งค่าให้โหนดผลักกันออกห่างขึ้น
+            net.barnes_hut(
+                gravity=-8000,        # แรงผลักระหว่างโหนด ติดลบเยอะๆ โหนดยิ่งผลักกันออกไปไกล
+                central_gravity=0.3,  # แรงดึงกลับเข้าจุดศูนย์กลาง
+                spring_length=250,    # ความยาวของเส้นเชื่อม ยิ่งเยอะ โหนดยิ่งอยู่ห่างกัน
+                spring_strength=0.05, # ความยืดหยุ่นของเส้น
+                damping=0.09          # ความหนืด ช่วยให้กราฟหยุดสั่นเร็วขึ้น
+            )
+            
+            # 2. เปิดแผงควบคุมให้ผู้ใช้ปรับระยะห่างกราฟเองได้บนหน้าเว็บ
+            net.show_buttons(filter_=['physics'])
+            # ---------------------------------------------
+            
             net.save_graph("research_graph.html")
             
             st.success(f"สร้างกราฟสำเร็จ! พบทั้งหมด {len(G.nodes())} Nodes")
@@ -214,7 +227,7 @@ if st.session_state.get('graph_ready', False):
     st.subheader("Knowledge Graph Exploration")
     try:
         with open("research_graph.html", 'r', encoding='utf-8') as f:
-            components.html(f.read(), height=720)
+            components.html(f.read(), height=955)
     except FileNotFoundError:
         pass
 
