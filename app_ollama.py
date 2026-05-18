@@ -262,3 +262,76 @@ if 'graph' in st.session_state:
         
         else:
             st.info("ขณะนี้ยังไม่มีเปเปอร์อื่นที่เชื่อมโยงกับเปเปอร์นี้ลองค้นหาหัวข้ออื่นๆ เพิ่มเติมเพื่อขยายกราฟความรู้ให้กว้างขึ้นนะครับ")
+
+# --- 10. SEMANTIC SEARCH (ค้นหาเชิงความหมาย) ---
+if 'graph' in st.session_state:
+    st.divider()
+    st.subheader("Semantic Search ค้นหาแบบเจาะจงความสัมพันธ์")
+    st.markdown("ค้นหาเปเปอร์จากการจับคู่ความสัมพันธ์")
+    
+    current_graph = st.session_state['graph']
+    
+    raw_methods = [data.get('label') for node, data in current_graph.nodes(data=True) if data.get('type') == 'Method']
+    raw_datasets = [data.get('label') for node, data in current_graph.nodes(data=True) if data.get('type') == 'Dataset']
+    
+    # บังคับแปลงข้อมูลทุกรูปแบบจาก AI ให้กลายเป็น Text ธรรมดา
+    def clean_label(label):
+        if isinstance(label, dict):
+            val = str(label.get('name', str(label))) 
+        elif isinstance(label, list):
+            val = str(label[0]) if label else "Unknown"
+        else:
+            val = str(label)
+
+        return val.strip().title()
+        
+    all_methods = list(set([clean_label(m) for m in raw_methods]))
+    all_datasets = list(set([clean_label(d) for d in raw_datasets]))
+    
+    # เรียงลำดับตัวอักษรให้หาคำได้ง่ายขึ้น
+    all_methods.sort()
+    all_datasets.sort()
+    
+    # จะแสดง UI ก็ต่อเมื่อกราฟมีข้อมูล Method และ Dataset เท่านั้น
+    if all_methods and all_datasets:
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_method = st.selectbox("เลือก Method:", ["-- ไม่ระบุ --"] + all_methods)
+        with col2:
+            selected_dataset = st.selectbox("เลือก Dataset:", ["-- ไม่ระบุ --"] + all_datasets)
+            
+        if st.button("ค้นหาเปเปอร์"):
+            results = []
+            
+            # กระบวนการสืบค้น (Graph Querying)
+            for node, data in current_graph.nodes(data=True):
+                if data.get('type') == 'Paper':
+                    has_method = (selected_method == "-- ไม่ระบุ --")
+                    has_dataset = (selected_dataset == "-- ไม่ระบุ --")
+                    
+                    # เช็ค Neighbors ที่เปเปอร์นี้มีเส้นลูกศรชี้ไปหา
+                    for neighbor in current_graph.successors(node):
+                        neighbor_data = current_graph.nodes[neighbor]
+                        if neighbor_data.get('type') == 'Method' and neighbor_data.get('label') == selected_method:
+                            has_method = True
+                        if neighbor_data.get('type') == 'Dataset' and neighbor_data.get('label') == selected_dataset:
+                            has_dataset = True
+                            
+                    # ถ้าตรงเงื่อนไขทั้งคู่ Intersection แปลว่าเจอเปเปอร์
+                    if has_method and has_dataset:
+                        # เช็คว่าไม่ใช่เปเปอร์ที่เลือกมาแบบ ไม่ระบุ ทั้ง 2 ช่อง
+                        if selected_method != "-- ไม่ระบุ --" or selected_dataset != "-- ไม่ระบุ --":
+                            results.append(data.get('title', 'Unknown Title'))
+            
+            # แสดงผลลัพธ์แบบรายการ
+            if results:
+                st.success(f"พบเปเปอร์ที่ตรงตามเงื่อนไขทั้งหมด {len(results)} ฉบับ:")
+                for i, title in enumerate(results):
+                    st.write(f"{i+1}. {title}")
+            else:
+                if selected_method == "-- ไม่ระบุ --" and selected_dataset == "-- ไม่ระบุ --":
+                    st.warning("โปรดเลือก Method หรือ Dataset อย่างน้อย 1 อย่างก่อนกดค้นหาครับ")
+                else:
+                    st.warning(f"ไม่พบเปเปอร์ที่ใช้ '{selected_method}' ร่วมกับ '{selected_dataset}' ในกราฟนี้ครับ ลองปรับเงื่อนไขให้กว้างขึ้นดูนะครับ")
+    else:
+        st.info("กราฟปัจจุบันยังไม่มีข้อมูล Method หรือ Dataset เพียงพอสำหรับการค้นหาครับ ลองค้นหาหัวข้อใหม่ที่ได้เปเปอร์หลากหลายขึ้นนะครับ")
