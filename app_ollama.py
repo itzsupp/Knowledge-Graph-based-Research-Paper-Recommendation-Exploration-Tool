@@ -25,7 +25,7 @@ st.markdown("ระบบดึงข้อมูลจาก Semantic Scholar �
 with st.sidebar:
     st.header("การตั้งค่า")
     query = st.text_input("หัวข้อที่ต้องการค้นหา:", "Large Language Models")
-    limit = st.slider("จำนวนเปเปอร์เริ่มต้น:", 5, 300, 10)
+    limit = st.slider("จำนวนเปเปอร์เริ่มต้น:", 5, 100, 10)
 
 # --- 4. API FUNCTIONS (Semantic Scholar) ---
 @st.cache_data(show_spinner=False)
