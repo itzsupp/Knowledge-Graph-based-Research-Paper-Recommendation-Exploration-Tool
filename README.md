@@ -2,13 +2,13 @@
 
 Prototype เครื่องมือสำรวจและวิเคราะห์ความสัมพันธ์ของงานวิจัยด้วย Knowledge Graph
 
-เว็บแอปพลิเคชันนี้ทำงานแบบ Interactive โดยใช้ **Semantic Scholar API** ร่วมกับ **Large Language Model (Ollama) แบบ Local** เพื่อสร้าง Knowledge Graph จากงานวิจัย ช่วยให้นักวิจัยสามารถสำรวจความเชื่อมโยง ค้นหาเปเปอร์ที่เกี่ยวข้องกันผ่านอัลกอริทึมกราฟ และทำการค้นหาเชิงความหมายหรือ Semantic Search ที่ซับซ้อน
+เว็บแอปพลิเคชันนี้ทำงานแบบ Interactive โดยใช้ Semantic Scholar API ร่วมกับ Large Language Model (Ollama) แบบ Local เพื่อสร้าง Knowledge Graph จากงานวิจัย ช่วยให้นักวิจัยสามารถสำรวจความเชื่อมโยง ค้นหาเปเปอร์ที่เกี่ยวข้องกันผ่านอัลกอริทึมกราฟ และทำการค้นหาเชิงความหมายหรือ Semantic Search ที่ซับซ้อน
 
 ## ฟีเจอร์หลัก
 
 1. **การสร้างกราฟความรู้ (Knowledge Graph Construction)**
    - ดึงข้อมูลเปเปอร์อัตโนมัติสูงสุด 100 ฉบับผ่าน Semantic Scholar API
-   - ใช้ Local LLM (`llama3` ผ่าน Ollama) อ่าน Abstract เพื่อสกัดข้อมูลที่ซ่อนอยู่ เช่น `Method`, `Dataset`, `Topic` และ `Evaluation Metric` ตัวชี้วัดผลลัพธ์
+   - ใช้ Local LLM (`llama3` ผ่าน Ollama) อ่าน Abstract เพื่อสกัดข้อมูล เช่น `Method`, `Dataset`, `Topic` และ `Evaluation Metric`
    - แมปคะแนนผลการประเมิน เช่น Accuracy ลงบนเส้นเชื่อมของกราฟโดยตรงเพื่อแสดงบริบทเชิงลึก
 
 2. **การแสดงผลกราฟแบบโต้ตอบได้ (Interactive Graph Visualization)**
@@ -16,11 +16,11 @@ Prototype เครื่องมือสำรวจและวิเคร�
    - ผู้ใช้สามารถลากโหนด ซูมเข้าออก และปรับแต่งค่าฟิสิกส์ของกราฟ เช่น ความห่างของโหนดได้
 
 3. **ระบบแนะนำเปเปอร์ด้วยกราฟ (Graph-based Paper Recommendation)**
-   - ใช้อัลกอริทึม **Personalized PageRank** บนกราฟแบบไม่มีทิศทาง (Undirected Graph)
+   - ใช้อัลกอริทึม Personalized PageRank บนกราฟแบบไม่มีทิศทาง (Undirected Graph)
    - แนะนำเปเปอร์ที่เกี่ยวข้องโดยคำนวณความสัมพันธ์ผ่าน Method, Dataset, Topic และการอ้างอิง Citation ที่ใช้ร่วมกัน
 
 4. **การค้นหาเชิงความหมาย (Semantic Search)**
-   - ยกระดับจากการค้นหาคีย์เวิร์ดธรรมดา เป็นการสืบค้นจากโครงสร้างความสัมพันธ์ในกราฟ
+   - เป็นการสืบค้นจากโครงสร้างความสัมพันธ์ในกราฟ
    - ค้นหาเปเปอร์ที่ตรงตามเงื่อนไขความสัมพันธ์ที่กำหนด
 
 ## เทคโนโลยีที่ใช้
@@ -55,7 +55,7 @@ pip install -r requirements.txt
 ollama run llama3
 ```
 
-- ตั้งค่า Environment Variables: สร้างไฟล์ .env ไว้ในโฟลเดอร์หลักของโปรเจกต์ และเพิ่ม API Key ของ Semantic Scholar ของคุณลงไป
+- ตั้งค่า Environment Variables: สร้างไฟล์ .env ไว้ในโฟลเดอร์หลักของโปรเจกต์ และเพิ่ม API Key ของ Semantic Scholar ของคุณลงไป สามารถขอ API ได้จาก [Semantic Scholar](https://www.semanticscholar.org/product/api)
 
 ```bash
 S2_API_KEY=your_semantic_scholar_api_key_here
